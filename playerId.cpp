@@ -50,5 +50,10 @@ playerId playerId:: operator++(int) {
 }
 
 void playerId::setPlayersGroup (group* group){
-    players_group=group;
+    players_group = group;
+
+}
+void playerId::setPlayersGroupNotEmpty (group* group){
+    players_not_empty_group = group;
+
 }

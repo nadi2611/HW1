@@ -51,6 +51,38 @@ StatusType GetHighestLevel(void *DS, int GroupID, int *PlayerID){
 
     return ((playersManager*)DS)->GetHighestLevel(GroupID,PlayerID);
 }
+StatusType GetGroupsHighestLevel(void *DS, int numOfGroups, int** players){
+    if (DS == nullptr || players == nullptr || numOfGroups < 1){
+        return INVALID_INPUT;
+    }
+
+    return ((playersManager*)DS)->GetGroupsHighestLevel(numOfGroups,players);
+
+
+}
+
+StatusType IncreaseLevel (void *DS, int PlayerID, int LevelIncrease){
+
+    if (DS == nullptr){
+        return INVALID_INPUT;
+    }
+
+    return ((playersManager*)DS)->IncreaseLevel(PlayerID,LevelIncrease);
+}
+
+StatusType GetAllPlayersByLevel (void *DS, int GroupID, int **Players, int *numOfPlayers){
+    if(DS == nullptr || Players == nullptr || numOfPlayers == nullptr){
+        return INVALID_INPUT;
+    }
+
+    return ((playersManager*)DS)->GetAllPlayersByLevel(GroupID,Players,numOfPlayers);
+
+}
+
+void Quit(void** DS){
+    return ((playersManager*)DS)->Quit();
+}
+
 
 
 
@@ -68,9 +100,6 @@ int main(){
     addGroup(ds,5);
     addGroup(ds,15);
 
-    AddPlayer(ds,2116,15,0);
-    AddPlayer(ds, 2118, 15, 4);
-    AddPlayer(ds, 2110, 5,500);
-    ReplaceGroup(ds,5,15);
+
 
 }

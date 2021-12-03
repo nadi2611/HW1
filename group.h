@@ -15,6 +15,10 @@ public:
     playerLevel* max_player;
     explicit group(int id) : group_id(id),players(nullptr),max_player(nullptr){}
     ~group() = default;
+    group& operator=( group* new_group ) {
+        max_player = new_group->max_player;
+
+    }
 
     bool operator==(const group new_group ) const;
     bool operator!=(const group new_group ) const;
@@ -22,7 +26,6 @@ public:
     bool operator<(const group new_group ) const;
     bool operator>=(const group new_group ) const;
     bool operator<=(const group new_group ) const;
-
 
 
 

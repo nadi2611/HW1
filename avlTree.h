@@ -17,12 +17,7 @@ public:
     avl_node():data(nullptr),right_node(nullptr), left_node(nullptr), parent_node(nullptr){}
     explicit avl_node( T* new_data) : data(new_data), right_node(nullptr), left_node(nullptr), parent_node(nullptr){}
     ~avl_node() = default;
-    T* operator=(avl_node<T> new_node){
-        data = new_node.getData();
-        right_node = new_node.getRightNode();
-        left_node = new_node.getLeftNode();
-        parent_node = new_node.getParentNode();
-    }
+
     T* getData(){
         return data;
     }
@@ -70,7 +65,7 @@ public:
     void insertAvlNodeHelperFunc(avl_node<T>* new_node, avl_node<T>* root);
     int height(avl_node<T>* base);// TODO DONE
     int balanceFactor(avl_node<T>* base);// TODO DONE
-    void inOrder(int* i, avl_node<T>* root, T* array);
+    void inOrder(int* i, avl_node<T>* root, T** array);
     avl_node<T>* rotateLL (avl_node<T>* base); //TODO DONE
     avl_node<T>*  rotateLR (avl_node<T>* base); //TODO DONE
     avl_node<T>*  rotateRR (avl_node<T>* base); //TODO DONE
@@ -82,18 +77,44 @@ public:
     avl_node<T>* buildTree(avl_node<T>* father, T* array, int start, int end);
     //void inOrderHelperFun(int* i,avl_node<T>* root, T* array);
     int getLenght();
+    void setRoot (avl_node<T>* new_root,int new_len);
+    void inOrderByLenght(int* i, avl_node<T>* root, T** array, int len);
+
 };
+
+
+
 
 template <class T>
 int avl_tree<T>::getLenght() {
     return this->length;
 }
 
+template<class T>
+void avl_tree<T>:: inOrderByLenght(int* i, avl_node<T>* root, T** array, int len){
+
+    if (root == NULL || *i == len) {
+        return;
+    }
+
+    inOrder(i,root->getLeftNode(),array);
+    array[*i] = (root->getData());
+    *i = *i + 1;
+    inOrder(i,root->getRightNode(),array);
+}
+
+
+template <class T>
+void avl_tree<T>::setRoot (avl_node<T>* new_root,int new_len){
+    root=new_root;
+    length=new_len;
+}
+
 
 
 
 template<class T>
-void avl_tree<T>:: inOrder(int* i, avl_node<T>* root, T* array){
+void avl_tree<T>:: inOrder(int* i, avl_node<T>* root, T** array){
     if (root == NULL) {
         return;
     }
@@ -119,8 +140,7 @@ avl_node<T>* avl_tree<T>::buildTree(avl_node<T>* father, T* array, int start, in
     int mid = (start + end)/2 ;
 
     avl_node<T>* tree_root = new avl_node<T>();
-
-    tree_root->replaceData(&array[mid]);
+    *tree_root->getData() = array[mid];
 
     tree_root->insertParentNode(father);
     tree_root->insertLeftNode(buildTree(tree_root,array,start,mid - 1));
@@ -182,7 +202,7 @@ avl_node<T>* avl_tree<T>::removeNode(T* data, avl_node<T> *root) {   // We imple
                 parent_node->insertLeftNode(nullptr);
 
             }
-
+            delete data;////+++
             delete root;
             root= nullptr;
             length--;
@@ -204,6 +224,7 @@ avl_node<T>* avl_tree<T>::removeNode(T* data, avl_node<T> *root) {   // We imple
             }
 
             root=root ->getLeftNode();
+            delete data; ///// +++
             delete root;
             length--;
         }

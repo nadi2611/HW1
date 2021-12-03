@@ -7,33 +7,54 @@ StatusType playersManager:: addGroup(int id){
     if(id <= 0){
         return INVALID_INPUT;
     }
-    if(groups_tree == nullptr){
+
+    // Checks if we didnt add any group yet
+    if(groups_tree == nullptr ){
         groups_tree = new avl_tree<group>;
         if(groups_tree == nullptr){
             return ALLOCATION_ERROR;
         }
     }
 
+    // Checks if we didnt add any group yet
+    if(not_empty_groups == nullptr ){
+        not_empty_groups = new avl_tree<group>;
+        if(not_empty_groups == nullptr){
+            return ALLOCATION_ERROR;
+        }
+    }
 
+    // Object of type group (to add).
+    group *temp_group1 = new group(id) ;
 
-    group *temp_group = new group(id) ;
-
-    if(temp_group == nullptr){
+    if(temp_group1 == nullptr){
         return ALLOCATION_ERROR;
     }
 
-    avl_node<group>* temp_group_node = new avl_node<group>(temp_group);
 
-    if(temp_group_node == nullptr){
+
+    // Object of type group_node to add for groups_tree
+    avl_node<group>* temp_group1_node = new avl_node<group>(temp_group1);
+
+    if(temp_group1_node == nullptr){
+        return ALLOCATION_ERROR;
+    }
+    // Object of type group_node to add for not_empty_group_tree.
+
+    avl_node<group>* temp_group2_node = new avl_node<group>(temp_group1);
+
+    if(temp_group2_node == nullptr){
         return ALLOCATION_ERROR;
     }
 
-    if(groups_tree != nullptr && groups_tree->findNode(temp_group, groups_tree->getRoot()) != nullptr){
+
+    if(groups_tree->findNode(temp_group1, groups_tree->getRoot()) != nullptr
+    || not_empty_groups->findNode(temp_group1,not_empty_groups->getRoot()) != nullptr){
         return FAILURE;
     }
 
-
-    if(groups_tree->insertAvlNode(temp_group_node)){
+    // Insert the new group to both trees.
+    if(groups_tree->insertAvlNode(temp_group1_node) && not_empty_groups->insertAvlNode(temp_group2_node)){
         return SUCCESS;
     }
 
@@ -51,6 +72,8 @@ StatusType playersManager::removePlayer(int id) {
         return INVALID_INPUT;
     }
 
+    // Remove player from not_empty_group.
+
     playerId temp =  playerId(id, 0);
     avl_node<playerId> *player_id_node = playersid_tree->findNode(&temp, playersid_tree->getRoot());
 
@@ -58,16 +81,56 @@ StatusType playersManager::removePlayer(int id) {
         return FAILURE ; // there is no player with the given id .
     }
 
-    playerId* player_id = player_id_node->getData();
-    playerLevel player_level_to_remove =  playerLevel(player_id_node->getData()->getId(),player_id_node->getData()->getLevel());
+    // Delete the player from the group
+    playerLevel* player_level = new playerLevel(player_id_node->getData()->getId(),player_id_node->getData()->getLevel());
 
-    player_id->getPlayersGroup()->players->removeNode(&player_level_to_remove,player_id->getPlayersGroup()->players->getRoot());
-    playerslevel_tree->removeNode(&player_level_to_remove,playerslevel_tree->getRoot());
-    playersid_tree->removeNode(player_id,playersid_tree->getRoot());
+    player_id_node->getData()->getPlayersGroup()->players->removeNode(player_level, player_id_node->getData()->getPlayersGroup()->players->getRoot());
+    avl_node<playerLevel>* root_players = player_id_node->getData()->getPlayersGroup()->players->getRoot();
 
-    if (max_player->getID() == id)
-    {
-        max_player = playerslevel_tree->findMaxNode(playerslevel_tree->getRoot())->getData();
+    // Checks if we removed the maximum.
+    if(player_level->getLevel() > (player_id_node->getData()->getPlayersGroup()->max_player)->getLevel()){
+
+        player_id_node->getData()->getPlayersGroup()->max_player = (player_id_node->getData()->getPlayersGroup()->players->findMaxNode(root_players))->getData();
+
+    }
+
+
+    player_id_node->getData()->getPlayersNotEmptyGroup()->players->removeNode(player_level, player_id_node->getData()->getPlayersNotEmptyGroup()->players->getRoot());
+
+    if(player_level->getLevel() > (player_id_node->getData()->getPlayersNotEmptyGroup()->max_player)->getLevel()){
+
+        avl_node<playerLevel>* root = player_id_node->getData()->getPlayersNotEmptyGroup()->players->getRoot();
+        player_id_node->getData()->getPlayersNotEmptyGroup()->max_player = (player_id_node->getData()->getPlayersNotEmptyGroup()->players->findMaxNode(root))->getData() ;
+
+    }
+    if(player_id_node->getData()->getPlayersGroup()->players == 0){
+        // Delete the group from not_empty_group tree and update the max.
+        player_id_node->getData()->getPlayersGroup()->max_player = nullptr;
+        delete(player_id_node->getData()->getPlayersGroup()->players);
+        player_id_node->getData()->getPlayersGroup()->players = nullptr;
+
+        player_id_node->getData()->getPlayersNotEmptyGroup()->max_player = nullptr;
+        delete(player_id_node->getData()->getPlayersNotEmptyGroup()->players);
+        player_id_node->getData()->getPlayersNotEmptyGroup()->players = nullptr;
+
+        not_empty_groups->removeNode(player_id_node->getData()->getPlayersNotEmptyGroup(), not_empty_groups->getRoot());
+
+
+
+
+    }
+
+    playersid_tree->removeNode(player_id_node->getData(),playersid_tree->getRoot());
+    free(player_level);
+
+    player_id_node->getData()->setPlayersGroup(nullptr);
+    player_id_node->getData()->setPlayersGroupNotEmpty(nullptr);
+
+
+    playerslevel_tree->removeNode(player_level, playerslevel_tree->getRoot());
+
+    if(player_id_node->getData()->getLevel() > max_player->getLevel()){
+        max_player = (playerslevel_tree->findMaxNode(playerslevel_tree->getRoot()))->getData();
     }
 
     return SUCCESS;
@@ -127,8 +190,8 @@ StatusType playersManager:: ReplaceGroup(int GroupID, int ReplacementID) {
     }
 
 
-    player_tree1->inOrder(&i, player_tree1->getRoot(), array1);
-    player_tree2->inOrder(&j, player_tree2->getRoot(), array2);
+    player_tree1->inOrder(&i, player_tree1->getRoot(), &array1);
+    player_tree2->inOrder(&j, player_tree2->getRoot(), &array2);
 
     int len_1 = player_tree1->getLenght();
     int len_2 = player_tree2->getLenght();
@@ -148,20 +211,53 @@ StatusType playersManager:: ReplaceGroup(int GroupID, int ReplacementID) {
     }
 
 
-   avl_node<playerLevel>* root_for_new_players = player_tree1->buildTree(nullptr,array3,0,array3_length - 1 );
+    avl_node<playerLevel>* root_for_new_players = player_tree1->buildTree(nullptr,array3,0,array3_length);
 
-    avl_tree<playerLevel>* new_tree = new avl_tree<playerLevel>(root_for_new_players,array3_length);
-
-    //TODO
-
-    // remove and update
-
-
+    delete (player_tree1);
+    player_tree1= nullptr;
+    delete (player_tree2);
+    player_tree2= nullptr;
+    group_b->getData()->players->setRoot(root_for_new_players,array3_length);
 
 
+
+    // updating the trees in the not empty trees
+    temp_a = group(GroupID);
+    group_a = not_empty_groups->findNode(&temp_a, not_empty_groups->getRoot());
+    if (group_a == nullptr) {
+        return FAILURE;
+    }
+    not_empty_groups->removeNode(&temp_a,not_empty_groups->getRoot());
+    temp_b = group(ReplacementID);
+    group_b = not_empty_groups->findNode(&temp_b, not_empty_groups->getRoot());
+    if (group_b == nullptr) {
+        return FAILURE;
+    }
+    player_tree1=group_a->getData()->players;
+    player_tree2=group_b->getData()->players;
+    player_tree1->inOrder(&i, player_tree1->getRoot(), &array1);
+    player_tree2->inOrder(&j, player_tree2->getRoot(), &array2);
+
+    len_1 = player_tree1->getLenght();
+    len_2 = player_tree2->getLenght();
+
+    array3_length = len_1+len_2;
+    array3 = static_cast<playerLevel *>(malloc((sizeof(playerLevel *)) * (array3_length)));
+    i = 0;
+    j = 0;
+    k = 0;
+    merge(array1, array2, array3, len_1, len_2);
+    avl_node<playerLevel>* new_root = player_tree1->buildTree(nullptr,array3,0,array3_length);
+    delete (player_tree1);
+    player_tree1= nullptr;
+    delete (player_tree2);
+    player_tree2= nullptr;
+    group_b->getData()->players->setRoot(new_root,array3_length);
+    free(array1);
+    free(array2);
+    free(array3);
+    return  SUCCESS;
 }
-
-
 void playersManager::merge(playerLevel* arr1, playerLevel* arr2, playerLevel* arr3, int len1, int len2){
 
     int i = 0, j = 0, k = 0;
@@ -247,18 +343,23 @@ StatusType playersManager:: addPlayer(int player_id, int group_id, int level) {
         }
     }
 
-    //adding to the players tree in the group
+
+
+    //adding to the players tree in the group.
     playerLevel *player_level_1 = new playerLevel(player_id, level);
     if (player_level_1 == nullptr) {
         return ALLOCATION_ERROR;
     }
     avl_node<playerLevel> *temp_player_node_1 = new avl_node<playerLevel>(player_level_1);
+
     if (temp_player_node_1 == nullptr) {
         return ALLOCATION_ERROR;
     }
     if (!(group_to_add_to->getData()->players->insertAvlNode(temp_player_node_1))) {
         return ALLOCATION_ERROR;
     }
+
+
     // adjusting the max player in the group
     if (group_to_add_to->getData()->max_player == nullptr) {
         group_to_add_to->getData()->max_player = player_level_1;
@@ -268,6 +369,36 @@ StatusType playersManager:: addPlayer(int player_id, int group_id, int level) {
 
     //setting the group pointer in player id to point at the players group.
     player_id_2->setPlayersGroup((group_to_add_to->getData()));
+
+
+
+    //adding to the players tree in the not_empty_groups_tree.
+    playerLevel *player_level_2 = new playerLevel(player_id, level);
+    if (player_level_2 == nullptr) {
+        return ALLOCATION_ERROR;
+    }
+    avl_node<playerLevel> *temp_player_node_2 = new avl_node<playerLevel>(player_level_2);
+
+    if (temp_player_node_2 == nullptr) {
+        return ALLOCATION_ERROR;
+    }
+
+    avl_node<group>* group_not_empty_to_add_to = not_empty_groups->findNode(&temp_group,not_empty_groups->getRoot());
+
+    if (!(group_not_empty_to_add_to->getData()->players->insertAvlNode(temp_player_node_2))) {
+        return ALLOCATION_ERROR;
+    }
+
+
+    // adjusting the max player in the group
+    if (group_not_empty_to_add_to->getData()->max_player == nullptr) {
+        group_not_empty_to_add_to->getData()->max_player = player_level_2;
+    } else if (group_not_empty_to_add_to->getData()->max_player < player_level_2) {
+        group_not_empty_to_add_to->getData()->max_player = player_level_2;
+    }
+
+    //setting the group pointer in player id to point at the players group.
+    player_id_2->setPlayersGroupNotEmpty((group_not_empty_to_add_to->getData()));
 
 
     // adding player to player level tree
@@ -364,9 +495,24 @@ StatusType playersManager::IncreaseLevel(int player_id, int level_increase) {
     // update max player in the group
     players_group->max_player = (players_group->players->findMaxNode(players_group->players->getRoot()))->getData();
     max_player=playerslevel_tree->findMaxNode(playerslevel_tree->getRoot())->getData();
+
+////+++
+    //updating players in not empty groups tree
+    playerLevel temp_player_level_3 = playerLevel(player_id, old_level);
+    group *players_group_2 = found_player_id->getData()->getPlayersNotEmptyGroup();
+    if (!players_group_2->players->removeNode(&temp_player_level_3, players_group_2->players->getRoot())) {
+        return FAILURE;
+    }
+    playerLevel *new_player_level_3 = new playerLevel(player_id, new_level);
+    if (new_player_level_3 == nullptr) {
+        return ALLOCATION_ERROR;
+    }
+    avl_node<playerLevel> *player_level_node_3 = new avl_node<playerLevel>(new_player_level_3);
+    if (!players_group->players->insertAvlNode(player_level_node_3)) {
+        return ALLOCATION_ERROR;
+    }
     return SUCCESS;
 }
-
 StatusType playersManager::GetHighestLevel(int group_id, int *player_id) {
 
     if (group_id == 0 || player_id == nullptr) {
@@ -429,7 +575,7 @@ StatusType playersManager::GetAllPlayersByLevel(int group_id, int **players, int
             return ALLOCATION_ERROR;
 
         }
-        playerslevel_tree->inOrder(&i, playerslevel_tree->getRoot(), temp_array);
+        playerslevel_tree->inOrder(&i, playerslevel_tree->getRoot(), &temp_array);
         int *players_array = (int *) (malloc(sizeof(int) * (playerslevel_tree->getLenght())));
         if (players_array == nullptr) {
             return ALLOCATION_ERROR;
@@ -469,7 +615,7 @@ StatusType playersManager::GetAllPlayersByLevel(int group_id, int **players, int
     if (temp_array == nullptr) {
         return ALLOCATION_ERROR;
     }
-    found_tree->inOrder(&i, found_tree->getRoot(), temp_array);
+    found_tree->inOrder(&i, found_tree->getRoot(), &temp_array);
 
     int *players_array = (int *) (malloc(sizeof(int) * (playerslevel_tree->getLenght())));
     if (players_array == nullptr) {
@@ -485,3 +631,100 @@ StatusType playersManager::GetAllPlayersByLevel(int group_id, int **players, int
     return SUCCESS;
 }
 
+StatusType playersManager:: GetGroupsHighestLevel (int numOfGroups, int **Players){
+    if (numOfGroups<1 || Players== nullptr)
+    {
+        return INVALID_INPUT;
+    }
+    if (not_empty_groups == nullptr )
+    {
+        return FAILURE;
+    }
+    if (not_empty_groups->getLenght() < numOfGroups )
+    {
+        return FAILURE;
+    }
+    group** temp = reinterpret_cast<group **>((group *) malloc(sizeof(group) * numOfGroups));
+    if (temp == nullptr)
+    {
+        return FAILURE;
+    }
+    Players = reinterpret_cast<int **>((int *) malloc(sizeof(int) * numOfGroups));
+    if (Players == nullptr)
+    {
+        return FAILURE;
+    }
+    int i=0;
+    not_empty_groups->inOrderByLenght(&i,not_empty_groups->getRoot(),temp,numOfGroups);
+    for (int j=0; j<numOfGroups; j++)
+    {
+        *Players[j]=temp[j]->max_player->getID();
+    }
+    free(temp);
+    return SUCCESS;
+}
+
+
+void playersManager:: Quit()
+{
+    if (playersid_tree == nullptr)
+    {
+        //there is no players
+        if (groups_tree == nullptr)
+        {
+            return ; // there is no groups
+        }
+
+        groups_tree->deleteAvlTree(groups_tree->getRoot());
+        delete (groups_tree);
+        groups_tree= nullptr;
+    }
+
+//delete the players level tree
+    playerslevel_tree->deleteAvlTree(playerslevel_tree->getRoot());
+    delete(playerslevel_tree);
+    playerslevel_tree= nullptr;
+
+// delete players in players in groups and the groups
+    int i=0;
+    group** temp_arr= reinterpret_cast<group **>((group *) malloc(sizeof(group) * groups_tree->getLenght()));
+    groups_tree->inOrder(&i,groups_tree->getRoot(),temp_arr);
+    for (int j=0; j< groups_tree->getLenght(); j++)
+    {
+        ((*temp_arr[j])).players->deleteAvlTree((*temp_arr[j]).players->getRoot());
+        delete ((*temp_arr[j]).players);
+        (*temp_arr[j]).players= nullptr;
+        (*temp_arr[j]).players = nullptr;
+        delete (temp_arr[j]);
+        temp_arr[j]= nullptr;
+    }
+    free(temp_arr);
+    temp_arr= nullptr;
+    delete (groups_tree);
+    groups_tree= nullptr;
+
+    //delete players in players id tree
+    playersid_tree->deleteAvlTree(playersid_tree->getRoot());
+    delete(playersid_tree);
+    playersid_tree= nullptr;
+
+    // delete players in players in groups and the groups in not empty groups
+    i=0;
+    if (not_empty_groups != nullptr) {
+        group *temp_arr_2 = (group *) malloc(sizeof(group *) * not_empty_groups->getLenght());
+        not_empty_groups->inOrder(&i, not_empty_groups->getRoot(), &temp_arr_2);
+        for (int j = 0; j < not_empty_groups->getLenght(); j++) {
+            ((temp_arr_2[j])).players->deleteAvlTree((temp_arr_2[j]).players->getRoot());
+            delete ((temp_arr_2[j]).players);
+            (temp_arr_2[j]).players = nullptr;
+            (temp_arr_2[j]).max_player= nullptr;
+            delete (&temp_arr_2[j]);
+            temp_arr_2[j] = nullptr;
+        }
+        free(temp_arr_2);
+        temp_arr_2 = nullptr;
+        delete (not_empty_groups);
+        not_empty_groups = nullptr;
+
+    }
+}
